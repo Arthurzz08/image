@@ -1,11 +1,11 @@
 
 services:
   db:
-    image: postgres: 17-alpine
-    #restart: always
+    image: postgres:17-alpine
+    restart: always
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: admin
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
       POSTGRES_DB: imagelite
     ports:
       - '5432:5432'
@@ -14,7 +14,7 @@ services:
 
 
   pgadmin:
-    image: dpage/pgadmin14
+    image: dpage/pgadmin4
     restart: always
     environment:
         PGADMIN_DEFAULT_PASSWORD: admin
