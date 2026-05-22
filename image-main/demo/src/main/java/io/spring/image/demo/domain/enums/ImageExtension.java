@@ -24,8 +24,11 @@ public enum ImageExtension {
     public static ImageExtension valueOf(MediaType mediaType){
         return Arrays.stream(values())
                 .filter(ie-> ie.mediaType.equals(mediaType)).findFirst().orElse(null);
-
-
+    }
+    public static ImageExtension ofName(String name){
+        return Arrays.stream(values())
+                .filter(ie-> ie.name().equals(name)).findFirst().orElse(null);
     }
 
 }
+
