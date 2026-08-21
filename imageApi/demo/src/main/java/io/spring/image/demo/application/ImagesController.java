@@ -27,12 +27,18 @@ public class ImagesController {
     private final ImageService service;
     private final ImageMapper mapper;
 
+    public ImagesController(ImageService service, ImageMapper mapper) {
+        this.service = service;
+        this.mapper = mapper;
+    }
+
     @PostMapping
     public ResponseEntity save(
             @RequestParam("file")  MultipartFile file,
             @RequestParam("name")String name,
             @RequestParam("tags") List<String> tags
     ) throws IOException {
+        Process log;
         log.info("Recebendo tentativa de upload do arquivo: {}", file.getOriginalFilename());
         Image image = mapper.mapToImage(file, name, tags);
         Image savedImage =  service.save(image);
