@@ -1,13 +1,15 @@
 import { Image } from "./image";
 
 class ImageService {
-  baseURL: string = 'http://localhost:8080/v1/image';
+  baseURL: string = 'http://localhost:8080/images';
+  //colocar os parametros de busca na URL
+  async buscar(query: string='',extension?: string): Promise<Image[]> {
 
-  async buscar(): Promise<Image[]> {
-    const response = await fetch(this.baseURL);
+    const url = `${this.baseURL}?query=${query}&extension=${extension}`
+    const response = await fetch(url);
     return await response.json();
   }
 }
-
-export const useImage = () => new ImageService();
+// React Hook
+export const useImageService = () => new ImageService();
 
