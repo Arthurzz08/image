@@ -1,5 +1,7 @@
 'use client'
 import { Template, ImageCard } from '../components';
+import CarregandoImagens from '../components/CarregandoImagens';
+import AddImageModal from '../components/AddImageModal';
 import { useImageService } from '../resource/service';
 import { useState } from 'react';
 import { Image } from '../resource/image';
@@ -10,23 +12,40 @@ export default function Galeria() {
   const [images, setImages] = useState<Image[]>([]);
   const [query, setQuery] = useState<string>('')
   const [extension, setExtension] = useState<string>('')
+  const [carregando, setCarregando] = useState<boolean>(false)
+  const [modalAberto, setModalAberto] = useState<boolean>(false)
 
   async function searchImages() {
-    const result = await useService.buscar(query, extension);
+    setCarregando(true);
+    try {
+      const result = await useService.buscar(query, extension);
 
-    setImages(result);
-    console.table(result);
+      setImages(result);
+      console.table(result);
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  /*envia a nova imagem, fecha a janela e atualiza a galeria*/
+  async function salvarImagem(file: File, name: string, tags: string) {
+    await useService.salvar(file, name, tags);
+    setModalAberto(false);
+    await searchImages();
   }
 
   /*renderizando a imagem na tela*/
   function renderImageCard(image: Image) {
     return (
       <ImageCard key={image.url}
+        id={image.id}
         imageName={image.name}
         imageUrl={image.url}
         imageSize={`${image.size}`}
         uploadDate={image.uploadDate}
-        extension={image.extension} />
+        extension={image.extension}
+        tags={image.tags}
+        favorite={image.favorite} />
     )
   }
 
@@ -63,21 +82,32 @@ export default function Galeria() {
           </select>
 
           <button
-            className="h-11 rounded-lg bg-red-600 px-5 font-bold text-white shadow-[0_6px_24px_rgba(220,38,38,0.35)] transition hover:bg-red-700"
-            onClick={searchImages}>
+            className="h-11 rounded-lg bg-red-600 px-5 font-bold text-white shadow-[0_6px_24px_rgba(220,38,38,0.35)] transition hover:bg-red-700 disabled:opacity-60"
+            onClick={searchImages}
+            disabled={carregando}>
             Search
           </button>
 
           <button
-            className="h-11 rounded-lg border border-red-600 px-5 font-bold text-white transition hover:bg-red-600/15">
+            className="h-11 rounded-lg border border-red-600 px-5 font-bold text-white transition hover:bg-red-600/15"
+            onClick={() => setModalAberto(true)}>
             Add New
           </button>
         </div>
       </section>
 
-      <section className="container mx-auto grid grid-cols-1 gap-6 px-4 pb-10 sm:grid-cols-2 lg:grid-cols-3">
-        {renderImageCards()}
-      </section>
+      {carregando ? (
+        <CarregandoImagens />
+      ) : (
+        <section className="container mx-auto grid grid-cols-1 gap-6 px-4 pb-10 sm:grid-cols-2 lg:grid-cols-3">
+          {renderImageCards()}
+        </section>
+      )}
+
+      <AddImageModal
+        aberto={modalAberto}
+        onFechar={() => setModalAberto(false)}
+        onSalvar={salvarImagem} />
     </Template>
   );
 }
