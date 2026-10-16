@@ -2,6 +2,7 @@
 import { Template, ImageCard } from '../components';
 import CarregandoImagens from '../components/CarregandoImagens';
 import AddImageModal from '../components/AddImageModal';
+import Toast, { Aviso } from '../components/Toast';
 import { useImageService } from '../resource/service';
 import { useState } from 'react';
 import { Image } from '../resource/image';
@@ -14,6 +15,7 @@ export default function Galeria() {
   const [extension, setExtension] = useState<string>('')
   const [carregando, setCarregando] = useState<boolean>(false)
   const [modalAberto, setModalAberto] = useState<boolean>(false)
+  const [aviso, setAviso] = useState<Aviso | null>(null)
 
   async function searchImages() {
     setCarregando(true);
@@ -31,6 +33,7 @@ export default function Galeria() {
   async function salvarImagem(file: File, name: string, tags: string) {
     await useService.salvar(file, name, tags);
     setModalAberto(false);
+    setAviso({ tipo: 'sucesso', mensagem: 'Imagem adicionada com sucesso!' });
     await searchImages();
   }
 
@@ -108,6 +111,8 @@ export default function Galeria() {
         aberto={modalAberto}
         onFechar={() => setModalAberto(false)}
         onSalvar={salvarImagem} />
+
+      <Toast aviso={aviso} onFechar={() => setAviso(null)} />
     </Template>
   );
 }
