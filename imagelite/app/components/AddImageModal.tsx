@@ -7,6 +7,9 @@ interface AddImageModalProps {
   onSalvar: (file: File, name: string, tags: string) => Promise<void>;
 }
 
+const TIPOS_ACEITOS = ['image/png', 'image/jpeg', 'image/gif'];
+const TAMANHO_MAXIMO_MB = 5;
+
 export default function AddImageModal({ aberto, onFechar, onSalvar }: AddImageModalProps) {
   const [file, setFile] = useState<File | null>(null);
   const [name, setName] = useState<string>('');
@@ -14,6 +17,7 @@ export default function AddImageModal({ aberto, onFechar, onSalvar }: AddImageMo
   const [enviando, setEnviando] = useState<boolean>(false);
   const [erro, setErro] = useState<string>('');
   const [preview, setPreview] = useState<string>('');
+  const [arrastando, setArrastando] = useState<boolean>(false);
 
   // cria e limpa a pré-visualização da imagem escolhida
   useEffect(() => {
@@ -26,11 +30,23 @@ export default function AddImageModal({ aberto, onFechar, onSalvar }: AddImageMo
     return () => URL.revokeObjectURL(url);
   }, [file]);
 
+  // fecha o modal com a tecla ESC
+  useEffect(() => {
+    if (!aberto) return;
+    function aoPressionar(event: KeyboardEvent) {
+      if (event.key === 'Escape') fechar();
+    }
+    window.addEventListener('keydown', aoPressionar);
+    return () => window.removeEventListener('keydown', aoPressionar);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aberto, enviando]);
+
   function limparCampos() {
     setFile(null);
     setName('');
     setTags('');
     setErro('');
+    setArrastando(false);
   }
 
   function fechar() {
@@ -39,12 +55,38 @@ export default function AddImageModal({ aberto, onFechar, onSalvar }: AddImageMo
     onFechar();
   }
 
+  // valida tipo e tamanho; devolve a mensagem de erro ou '' se estiver ok
+  function validarArquivo(arquivo: File): string {
+    if (!TIPOS_ACEITOS.includes(arquivo.type)) {
+      return 'Formato não suportado. Use PNG, JPEG ou GIF.';
+    }
+    if (arquivo.size > TAMANHO_MAXIMO_MB * 1024 * 1024) {
+      return `A imagem deve ter no máximo ${TAMANHO_MAXIMO_MB} MB.`;
+    }
+    return '';
+  }
+
   function escolherArquivo(arquivo: File | null) {
+    if (!arquivo) return;
+
+    const mensagem = validarArquivo(arquivo);
+    if (mensagem) {
+      setErro(mensagem);
+      return;
+    }
+
+    setErro('');
     setFile(arquivo);
     // sugere o nome da imagem a partir do nome do arquivo
-    if (arquivo && !name) {
+    if (!name) {
       setName(arquivo.name.replace(/\.[^/.]+$/, ''));
     }
+  }
+
+  function aoSoltar(event: React.DragEvent<HTMLLabelElement>) {
+    event.preventDefault();
+    setArrastando(false);
+    escolherArquivo(event.dataTransfer.files?.[0] ?? null);
   }
 
   async function enviar() {
@@ -86,18 +128,37 @@ export default function AddImageModal({ aberto, onFechar, onSalvar }: AddImageMo
         <div className="mt-2 h-1 w-12 rounded-full bg-red-600" />
 
         <div className="mt-6 space-y-4">
-          <label className="flex cursor-pointer flex-col items-center justify-center overflow-hidden rounded-xl border border-dashed border-white/20 bg-white/5 p-4 text-center text-sm text-white/60 transition hover:border-red-600">
+          <label
+            onDragOver={event => { event.preventDefault(); setArrastando(true); }}
+            onDragLeave={() => setArrastando(false)}
+            onDrop={aoSoltar}
+            className={`flex cursor-pointer flex-col items-center justify-center overflow-hidden rounded-xl border border-dashed p-4 text-center text-sm transition hover:border-red-600 ${
+              arrastando
+                ? 'border-red-600 bg-red-600/10 text-white'
+                : 'border-white/20 bg-white/5 text-white/60'
+            }`}
+          >
             {preview ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={preview} alt="Pré-visualização" className="max-h-48 rounded-lg object-contain" />
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={preview} alt="Pré-visualização" className="max-h-48 rounded-lg object-contain" />
+                <span className="mt-2 text-xs text-white/40">Clique ou arraste para trocar</span>
+              </>
             ) : (
-              <span>Clique para escolher uma imagem</span>
+              <span className="py-3">
+                {arrastando
+                  ? 'Solte a imagem aqui'
+                  : 'Clique ou arraste uma imagem (PNG, JPEG ou GIF, até 5 MB)'}
+              </span>
             )}
             <input
               type="file"
               accept="image/png,image/jpeg,image/gif"
               className="hidden"
-              onChange={event => escolherArquivo(event.target.files?.[0] ?? null)}
+              onChange={event => {
+                escolherArquivo(event.target.files?.[0] ?? null);
+                event.target.value = ''; // permite escolher o mesmo arquivo de novo
+              }}
             />
           </label>
 

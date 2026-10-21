@@ -1,140 +1,104 @@
 'use client'
-import { useState } from 'react'
-
-const API = 'http://localhost:8080/images'
+import { useEffect, useState } from 'react'
+import { Heart, Pencil, Trash2 } from 'lucide-react'
+import { Image } from '../resource/image'
 
 interface ImageCardProps {
-  id?: string;
-  imageUrl?: string;
-  imageName?: string;
-  imageSize?: string;
-  uploadDate?: string;
-  extension?: string;
-  tags?: string;
-  favorite?: boolean;
+  image: Image;
+  onAbrir: () => void;
+  onFavoritar: (id: string) => void;
+  onEditar: (id: string, name: string, tags: string) => Promise<boolean>;
+  onExcluir: (id: string) => Promise<boolean>;
+  onTagClick?: (tag: string) => void;
 }
 
-type Toast = { type: 'success' | 'error'; msg: string } | null
-
 export const ImageCard: React.FC<ImageCardProps> = ({
-  id, imageName, imageUrl, imageSize, uploadDate, extension, tags, favorite,
+  image, onAbrir, onFavoritar, onEditar, onExcluir, onTagClick,
 }) => {
-  const [name, setName] = useState(imageName ?? '')
-  const [currentTags, setCurrentTags] = useState(tags ?? '')
-  const [isFavorite, setIsFavorite] = useState(!!favorite)
-  const [deleted, setDeleted] = useState(false)
-  const [editing, setEditing] = useState(false)
-  const [editName, setEditName] = useState(imageName ?? '')
-  const [editTags, setEditTags] = useState(tags ?? '')
-  const [loading, setLoading] = useState(false)
-  const [toast, setToast] = useState<Toast>(null)
+  const { id, name, url, size, uploadDate, extension, tags, favorite } = image
 
-  function showToast(type: 'success' | 'error', msg: string) {
-    setToast({ type, msg })
-    setTimeout(() => setToast(null), 3000)
-  }
+  const [editando, setEditando] = useState(false)
+  const [confirmando, setConfirmando] = useState(false)
+  const [editName, setEditName] = useState('')
+  const [editTags, setEditTags] = useState('')
+  const [carregando, setCarregando] = useState(false)
 
-  function downloadImage() {
-    window.open(imageUrl, '_blank');
-  }
+  const listaTags = tags?.split(',').map(tag => tag.trim()).filter(Boolean) ?? []
 
-  async function handleDelete() {
-    if (!id) return showToast('error', 'Imagem sem ID.')
-    if (!window.confirm(`Excluir "${name}"?`)) return
-    try {
-      setLoading(true)
-      const res = await fetch(`${API}/${id}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error()
-      setDeleted(true)
-      showToast('success', 'Imagem excluída com sucesso!')
-    } catch {
-      showToast('error', 'Erro ao excluir a imagem.')
-    } finally {
-      setLoading(false)
+  // ESC fecha os modais do card
+  useEffect(() => {
+    if (!editando && !confirmando) return
+    function aoPressionar(event: KeyboardEvent) {
+      if (event.key === 'Escape' && !carregando) {
+        setEditando(false)
+        setConfirmando(false)
+      }
     }
+    window.addEventListener('keydown', aoPressionar)
+    return () => window.removeEventListener('keydown', aoPressionar)
+  }, [editando, confirmando, carregando])
+
+  function abrirEdicao() {
+    setEditName(name ?? '')
+    setEditTags(tags ?? '')
+    setEditando(true)
   }
 
-  async function handleFavorite() {
-    if (!id) return showToast('error', 'Imagem sem ID.')
-    try {
-      const res = await fetch(`${API}/${id}/favorite`, { method: 'PATCH' })
-      if (!res.ok) throw new Error()
-      const data = await res.json()
-      setIsFavorite(data.favorite)
-      showToast('success', data.favorite ? 'Adicionada aos favoritos!' : 'Removida dos favoritos.')
-    } catch {
-      showToast('error', 'Erro ao atualizar favorito.')
-    }
+  async function salvarEdicao() {
+    if (!id || !editName.trim()) return
+    setCarregando(true)
+    const ok = await onEditar(id, editName.trim(), editTags.trim())
+    setCarregando(false)
+    if (ok) setEditando(false)
   }
 
-  async function handleSave() {
-    if (!id) return showToast('error', 'Imagem sem ID.')
-    if (!editName.trim()) return showToast('error', 'O nome não pode ficar vazio.')
-    try {
-      setLoading(true)
-      const res = await fetch(`${API}/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: editName.trim(), tags: editTags }),
-      })
-      if (!res.ok) throw new Error()
-      setName(editName.trim())
-      setCurrentTags(editTags)
-      setEditing(false)
-      showToast('success', 'Imagem atualizada com sucesso!')
-    } catch {
-      showToast('error', 'Erro ao atualizar a imagem.')
-    } finally {
-      setLoading(false)
-    }
+  async function confirmarExclusao() {
+    if (!id) return
+    setCarregando(true)
+    const ok = await onExcluir(id)
+    setCarregando(false)
+    if (ok) setConfirmando(false)
   }
-
-  const toastEl = toast && (
-    <div
-      className={`fixed bottom-6 right-6 z-50 rounded-xl px-5 py-3 text-sm font-bold text-white shadow-lg ${
-        toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'
-      }`}
-    >
-      {toast.msg}
-    </div>
-  )
-
-  if (deleted) return <>{toastEl}</>
 
   return (
     <>
       <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 transition-all duration-300 ease-in-out hover:-translate-y-1 hover:border-red-600/60 hover:shadow-[0_10px_40px_rgba(220,38,38,0.15)]">
         <div className="absolute right-3 top-3 z-10 flex gap-2">
           <button
-            onClick={handleFavorite}
-            title="Favoritar"
-            className="rounded-full bg-black/70 px-2.5 py-1 text-base transition hover:scale-110"
+            onClick={() => id && onFavoritar(id)}
+            title={favorite ? 'Remover dos favoritos' : 'Favoritar'}
+            aria-label={favorite ? 'Remover dos favoritos' : 'Favoritar'}
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-black/70 text-white/80 backdrop-blur transition hover:scale-110 hover:text-white"
           >
-            {isFavorite ? '❤️' : '🤍'}
+            <Heart size={18} className={favorite ? 'fill-red-600 text-red-600' : ''} />
           </button>
           <button
-            onClick={() => { setEditName(name); setEditTags(currentTags); setEditing(true) }}
+            onClick={abrirEdicao}
             title="Editar"
-            className="rounded-full bg-black/70 px-2.5 py-1 text-base transition hover:scale-110"
+            aria-label="Editar"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-black/70 text-white/80 backdrop-blur transition hover:scale-110 hover:text-white"
           >
-            ✏️
+            <Pencil size={18} />
           </button>
           <button
-            onClick={handleDelete}
-            disabled={loading}
+            onClick={() => setConfirmando(true)}
             title="Excluir"
-            className="rounded-full bg-black/70 px-2.5 py-1 text-base transition hover:scale-110 disabled:opacity-50"
+            aria-label="Excluir"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-black/70 text-white/80 backdrop-blur transition hover:scale-110 hover:text-white hover:!text-red-500"
           >
-            🗑️
+            <Trash2 size={18} />
           </button>
         </div>
 
-        <img
-          onClick={downloadImage}
-          src={imageUrl}
-          alt={name ?? 'Thumbnail'}
-          className="h-56 w-full cursor-pointer object-cover"
-        />
+        <button onClick={onAbrir} title="Ver em tela cheia" className="block w-full">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={url}
+            alt={name ?? 'Thumbnail'}
+            className="h-56 w-full cursor-zoom-in object-cover"
+          />
+        </button>
+
         <div className="p-4">
           <div className="mb-2 flex items-start justify-between gap-3">
             <h1 className="text-lg font-bold tracking-tight text-white">{name}</h1>
@@ -143,53 +107,114 @@ export const ImageCard: React.FC<ImageCardProps> = ({
             </span>
           </div>
           <p className="text-sm text-white/60">
-            {formatBytes(Number(imageSize))} · {uploadDate}
+            {formatBytes(Number(size))} · {uploadDate}
           </p>
+
+          {listaTags.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {listaTags.map(tag => (
+                <button
+                  key={tag}
+                  onClick={() => onTagClick?.(tag)}
+                  title={`Buscar "${tag}"`}
+                  className="rounded-full border border-white/15 px-2.5 py-0.5 text-xs text-white/70 transition hover:border-red-600 hover:text-white"
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      {editing && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/80 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-red-600/40 bg-neutral-950 p-6">
-            <h2 className="mb-4 text-xl font-bold text-white">Editar imagem</h2>
+      {/* modal de edição */}
+      {editando && (
+        <div
+          className="fixed inset-0 z-40 flex items-center justify-center bg-black/80 p-4"
+          onClick={() => !carregando && setEditando(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-red-600/40 bg-neutral-950 p-6"
+            onClick={event => event.stopPropagation()}
+          >
+            <h2 className="mb-4 text-xl font-bold text-white">
+              Editar <span className="text-red-600">imagem</span>
+            </h2>
             <label className="mb-1 block text-sm text-white/60">Nome</label>
             <input
               value={editName}
-              onChange={(e) => setEditName(e.target.value)}
+              onChange={event => setEditName(event.target.value)}
               className="mb-4 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white outline-none focus:border-red-600"
             />
             <label className="mb-1 block text-sm text-white/60">Tags (separadas por vírgula)</label>
             <input
               value={editTags}
-              onChange={(e) => setEditTags(e.target.value)}
+              onChange={event => setEditTags(event.target.value)}
               className="mb-6 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white outline-none focus:border-red-600"
             />
             <div className="flex justify-end gap-3">
               <button
-                onClick={() => setEditing(false)}
-                className="rounded-lg border border-white/20 px-4 py-2 font-bold text-white hover:bg-white/10"
+                onClick={() => setEditando(false)}
+                disabled={carregando}
+                className="rounded-lg border border-white/20 px-4 py-2 font-bold text-white hover:bg-white/10 disabled:opacity-50"
               >
                 Cancelar
               </button>
               <button
-                onClick={handleSave}
-                disabled={loading}
+                onClick={salvarEdicao}
+                disabled={carregando || !editName.trim()}
                 className="rounded-lg bg-red-600 px-4 py-2 font-bold text-white hover:bg-red-700 disabled:opacity-50"
               >
-                Salvar
+                {carregando ? 'Salvando...' : 'Salvar'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {toastEl}
+      {/* confirmação de exclusão */}
+      {confirmando && (
+        <div
+          className="fixed inset-0 z-40 flex items-center justify-center bg-black/80 p-4"
+          onClick={() => !carregando && setConfirmando(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl border border-red-600/40 bg-neutral-950 p-6 text-center"
+            onClick={event => event.stopPropagation()}
+          >
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-600/15 text-red-500">
+              <Trash2 size={26} />
+            </div>
+            <h2 className="mt-3 text-xl font-bold text-white">Tem certeza?</h2>
+            <p className="mt-2 text-sm text-white/60">
+              A imagem <span className="font-bold text-white">&quot;{name}&quot;</span> será
+              excluída e não poderá ser recuperada.
+            </p>
+            <div className="mt-6 flex justify-center gap-3">
+              <button
+                onClick={() => setConfirmando(false)}
+                disabled={carregando}
+                className="rounded-lg border border-white/20 px-4 py-2 font-bold text-white hover:bg-white/10 disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmarExclusao}
+                disabled={carregando}
+                className="rounded-lg bg-red-600 px-4 py-2 font-bold text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {carregando ? 'Excluindo...' : 'Excluir'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }
 
 function formatBytes(bytes: number = 0, decimals: number = 2): string {
-  if (bytes === 0) return '0 Bytes';
+  if (!bytes) return '0 Bytes';
 
   const k = 1024;
   const dm = decimals < 0 ? 0 : decimals;

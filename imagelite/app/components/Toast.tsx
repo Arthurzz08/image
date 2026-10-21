@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef } from 'react';
+import { CircleAlert, CircleCheck, X } from 'lucide-react';
 
 export type TipoAviso = 'sucesso' | 'erro';
 
@@ -37,16 +38,16 @@ export default function Toast({ aviso, onFechar }: ToastProps) {
           : 'border-red-600/60 shadow-[0_0_30px_rgba(220,38,38,0.3)]'
       }`}
     >
-      <span className={sucesso ? 'text-green-500' : 'text-red-500'}>
-        {sucesso ? '✔' : '✖'}
-      </span>
+      {sucesso
+        ? <CircleCheck size={20} className="shrink-0 text-green-500" />
+        : <CircleAlert size={20} className="shrink-0 text-red-500" />}
       <span className="flex-1">{aviso.mensagem}</span>
       <button
         onClick={onFechar}
         aria-label="Fechar aviso"
         className="text-white/50 transition hover:text-white"
       >
-        ✕
+        <X size={16} />
       </button>
     </div>
   );
