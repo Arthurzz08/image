@@ -8,8 +8,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-corpo);
+  /* permite usar a classe "font-display" em qualquer elemento (ex: logo) */
+  --font-display: var(--font-titulo);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -22,5 +23,18 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-corpo), system-ui, sans-serif;
+}
+
+/* títulos usam a fonte esportiva; fica na camada base para
+   as classes do Tailwind (ex: font-mono) ainda poderem sobrescrever */
+@layer base {
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-titulo), var(--font-corpo), sans-serif;
+    font-style: italic; /* apague esta linha para títulos retos */
+    letter-spacing: 0.01em;
+    font-synthesis-weight: none; /* evita "negrito falso" em fontes de um peso só */
+  }
 }
