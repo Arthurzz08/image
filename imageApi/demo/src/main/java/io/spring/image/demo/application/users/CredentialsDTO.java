@@ -1,2 +1,9 @@
-package io.spring.image.demo.application.users;public class CredentialsDTO {
+package io.spring.image.demo.application.users;
+
+import lombok.Data;
+
+@Data
+public class CredentialsDTO {
+    private String email;
+    private String password;
 }

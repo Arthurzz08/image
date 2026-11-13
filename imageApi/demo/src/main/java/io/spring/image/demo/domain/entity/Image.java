@@ -8,7 +8,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-import org.springframework.http.InvalidMediaTypeException;
 
 import java.time.LocalDateTime;
 
@@ -37,8 +36,10 @@ public class Image {
     private LocalDateTime uploadDate;
     @Column
     private String tags;
-    @Column(name = "file",
-            columnDefinition = "LONGBLOB")
+    @Column
+    private Boolean favorite;
+
+    @Column(name = "file", columnDefinition="LONGBLOB")
     @Lob
     private byte[] file;
 
@@ -46,10 +47,4 @@ public class Image {
         return getName().concat(".").concat(getExtension().name());
     }
 
-    public InvalidMediaTypeException getExtension() {
-
-    }
 }
-
-
-

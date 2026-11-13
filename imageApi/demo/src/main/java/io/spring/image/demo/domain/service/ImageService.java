@@ -7,10 +7,15 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ImageService {
-    //salva imagem
     Image save(Image image);
-    //retorna imagem
+
     Optional<Image> getById(String id);
 
     List<Image> search(ImageExtension extension, String query);
+
+    void delete(String id);
+
+    Optional<Image> update(String id, String name, String tags);
+
+    Optional<Image> toggleFavorite(String id);
 }

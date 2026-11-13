@@ -1,4 +1,3 @@
-
 package io.spring.image.demo.application;
 
 import io.spring.image.demo.domain.entity.Image;
@@ -16,42 +15,36 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/image")
+@RequestMapping("/images")
 @Slf4j
 @RequiredArgsConstructor
+@CrossOrigin("*")
 public class ImagesController {
 
     private final ImageService service;
     private final ImageMapper mapper;
 
-    public ImagesController(ImageService service, ImageMapper mapper) {
-        this.service = service;
-        this.mapper = mapper;
-    }
-
     @PostMapping
     public ResponseEntity save(
-            @RequestParam("file")  MultipartFile file,
-            @RequestParam("name")String name,
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("name") String name,
             @RequestParam("tags") List<String> tags
     ) throws IOException {
-        Process log;
-        log.info("Recebendo tentativa de upload do arquivo: {}", file.getOriginalFilename());
         Image image = mapper.mapToImage(file, name, tags);
-        Image savedImage =  service.save(image);
+        Image savedImage = service.save(image);
         URI imageUri = buildImageURL(savedImage);
-        //http://localhost:8080/upload/asfsdfsfg01012;  url
 
-        //return ResponseEntity.ok().build();
         return ResponseEntity.created(imageUri).build();
     }
+
     @GetMapping("{id}")
-    public ResponseEntity<byte[]> getImage(@PathVariable("id") String id){
+    public ResponseEntity<byte[]> getImage(@PathVariable("id") String id) {
         var possibleImage = service.getById(id);
-        if(possibleImage.isEmpty()){
+        if (possibleImage.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
         var image = possibleImage.get();
@@ -59,18 +52,16 @@ public class ImagesController {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(image.getExtension().getMediaType());
         headers.setContentLength(image.getSize());
-        // inline; filename="image.PNG"
-        headers.setContentDispositionFormData("inline; filename=\"" + image.getFileName() +  "\"", image.getFileName());
+        headers.setContentDispositionFormData("inline; filename=\"" + image.getFileName() + "\"", image.getFileName());
 
         return new ResponseEntity<>(image.getFile(), headers, HttpStatus.OK);
     }
-    //localhost:8080/images?extension=PNG&query=Nature
+
     @GetMapping
     public ResponseEntity<List<ImageDTO>> search(
             @RequestParam(value = "extension", required = false, defaultValue = "") String extension,
-            @RequestParam(value = "query", required = false) String query) throws InterruptedException {
-        Thread.sleep(3000L);
-        //var result = service.search(ImageExtension.valueOf(extension), query);
+            @RequestParam(value = "query", required = false) String query) {
+        // (removido o Thread.sleep(3000L) que atrasava toda busca)
         var result = service.search(ImageExtension.ofName(extension), query);
 
         var images = result.stream().map(image -> {
@@ -81,9 +72,35 @@ public class ImagesController {
         return ResponseEntity.ok(images);
     }
 
-    //método que cria a url da imagem
+    @DeleteMapping("{id}")
+    public ResponseEntity<Void> delete(@PathVariable("id") String id) {
+        if (service.getById(id).isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        service.delete(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("{id}")
+    public ResponseEntity<Void> update(@PathVariable("id") String id, @RequestBody Map<String, String> body) {
+        String name = body.get("name");
+        if (name == null || name.isBlank()) {
+            return ResponseEntity.badRequest().build();
+        }
+        return service.update(id, name.trim(), body.get("tags"))
+                .map(img -> ResponseEntity.ok().<Void>build())
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PatchMapping("{id}/favorite")
+    public ResponseEntity<Map<String, Boolean>> toggleFavorite(@PathVariable("id") String id) {
+        return service.toggleFavorite(id)
+                .map(img -> ResponseEntity.ok(Map.of("favorite", Boolean.TRUE.equals(img.getFavorite()))))
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     private URI buildImageURL(Image image) {
-        String imagePath = "/"+image.getId();
+        String imagePath = "/" + image.getId();
         return ServletUriComponentsBuilder
                 .fromCurrentRequestUri()
                 .path(imagePath)
